@@ -29,7 +29,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { policyData } = await req.json()
+    const { policyData, apiKey: clientApiKey } = await req.json()
 
     if (!policyData) {
       return new Response(
@@ -44,8 +44,8 @@ export default async function handler(req) {
       )
     }
 
-    // 환경 변수에서 API 키 가져오기 (서버 사이드만 접근 가능)
-    const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY
+    // API 키 우선순위: 클라이언트에서 입력한 키 > 환경 변수
+    const apiKey = clientApiKey?.trim() || process.env.OPENAI_API_KEY || process.env.LLM_API_KEY
     const apiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1/chat/completions'
 
     // API 키가 없으면 에러 반환
@@ -53,7 +53,7 @@ export default async function handler(req) {
       return new Response(
         JSON.stringify({ 
           error: 'LLM API key not configured',
-          message: '서버에 GPT API 키가 설정되지 않았습니다. Vercel 대시보드에서 OPENAI_API_KEY 환경 변수를 설정해주세요.',
+          message: 'GPT API 키를 입력해주세요. API 키 입력 섹션에서 키를 설정하거나, Vercel 대시보드에서 OPENAI_API_KEY 환경 변수를 설정해주세요.',
           skipLLM: true
         }),
         {

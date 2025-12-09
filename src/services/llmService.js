@@ -1,7 +1,7 @@
 // GPT API 서비스 (Vercel Function을 통해 호출)
 // API 키는 서버 사이드에서만 사용하여 보안 강화
 
-export async function callLLMAnalysis(policyData) {
+export async function callLLMAnalysis(policyData, apiKey = null) {
   // 타임아웃 설정 (30초)
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 30000)
@@ -14,7 +14,8 @@ export async function callLLMAnalysis(policyData) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        policyData
+        policyData,
+        apiKey: apiKey || null // 클라이언트에서 입력한 API 키 전송
       }),
       signal: controller.signal
     })

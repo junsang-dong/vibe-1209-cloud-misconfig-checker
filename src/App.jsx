@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FileUploader from './components/FileUploader'
 import PolicyViewer from './components/PolicyViewer'
 import AnalysisPanel from './components/AnalysisPanel'
+import ApiKeyInput from './components/ApiKeyInput'
 import { callLLMAnalysis } from './services/llmService'
 import './App.css'
 
@@ -9,10 +10,36 @@ function App() {
   const [policyData, setPolicyData] = useState(null)
   const [analysisResult, setAnalysisResult] = useState(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [apiKey, setApiKey] = useState(null)
+  const [isApiKeyValid, setIsApiKeyValid] = useState(false)
+
+  // 로컬 스토리지에서 API 키 불러오기
+  useEffect(() => {
+    const savedKey = localStorage.getItem('openai_api_key')
+    if (savedKey) {
+      setApiKey(savedKey)
+    }
+  }, [])
+
+  const handleApiKeySet = (key) => {
+    setApiKey(key)
+  }
+
+  const handleValidationChange = (isValid) => {
+    setIsApiKeyValid(isValid)
+  }
 
   const handleFileUpload = async (data, fileName) => {
     setPolicyData({ content: data, fileName })
     setAnalysisResult(null)
+    
+    // API 키가 없으면 에러 표시
+    if (!apiKey || !isApiKeyValid) {
+      setAnalysisResult({
+        error: 'GPT API 키를 입력하고 검증해주세요. API 키 입력 섹션에서 키를 설정할 수 있습니다.'
+      })
+      return
+    }
     
     // GPT API 기반 분석만 사용
     setIsAnalyzing(true)
@@ -23,7 +50,7 @@ function App() {
       )
       
       const analysis = await Promise.race([
-        callLLMAnalysis(data),
+        callLLMAnalysis(data, apiKey),
         timeoutPromise
       ])
       
@@ -53,6 +80,10 @@ function App() {
 
       <main className="app-main">
         <div className="upload-section">
+          <ApiKeyInput 
+            onApiKeySet={handleApiKeySet}
+            onValidationChange={handleValidationChange}
+          />
           <FileUploader onUpload={handleFileUpload} />
         </div>
 
