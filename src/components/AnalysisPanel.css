@@ -92,6 +92,12 @@
   color: #666;
 }
 
+.loading-hint {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #999;
+}
+
 .llm-loading-indicator {
   display: flex;
   align-items: center;

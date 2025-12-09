@@ -2,7 +2,6 @@ import { useState } from 'react'
 import FileUploader from './components/FileUploader'
 import PolicyViewer from './components/PolicyViewer'
 import AnalysisPanel from './components/AnalysisPanel'
-import { analyzeMisconfig } from './services/misconfigAnalyzer'
 import { callLLMAnalysis } from './services/llmService'
 import './App.css'
 
@@ -14,37 +13,32 @@ function App() {
   const handleFileUpload = async (data, fileName) => {
     setPolicyData({ content: data, fileName })
     setAnalysisResult(null)
-
-    // 1차 필터링 (브라우저 기반) - 즉시 표시
-    const basicAnalysis = analyzeMisconfig(data)
     
-    // 기본 분석 결과를 먼저 표시
-    setAnalysisResult(basicAnalysis)
-    
-    // LLM 분석 (API 키가 있는 경우) - 백그라운드에서 진행
+    // GPT API 기반 분석만 사용
     setIsAnalyzing(true)
     try {
       // 타임아웃 설정 (30초)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('LLM 분석 타임아웃')), 30000)
+        setTimeout(() => reject(new Error('GPT 분석 타임아웃')), 30000)
       )
       
-      const llmAnalysis = await Promise.race([
-        callLLMAnalysis(data, basicAnalysis),
+      const analysis = await Promise.race([
+        callLLMAnalysis(data),
         timeoutPromise
       ])
       
-      // LLM 분석 결과가 있으면 업데이트
-      if (llmAnalysis) {
+      if (analysis) {
+        setAnalysisResult(analysis)
+      } else {
         setAnalysisResult({
-          ...basicAnalysis,
-          llmAnalysis
+          error: 'GPT API 키가 설정되지 않았거나 분석에 실패했습니다.'
         })
       }
     } catch (error) {
-      console.error('LLM 분석 실패:', error)
-      // LLM 분석 실패해도 기본 분석 결과는 유지
-      // setAnalysisResult는 이미 기본 분석으로 설정되어 있음
+      console.error('GPT 분석 실패:', error)
+      setAnalysisResult({
+        error: error.message || '분석 중 오류가 발생했습니다.'
+      })
     } finally {
       setIsAnalyzing(false)
     }
