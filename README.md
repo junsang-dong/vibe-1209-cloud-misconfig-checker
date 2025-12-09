@@ -125,10 +125,14 @@ cloud-misconfig-checker/
 │   └── index.css
 ├── samples/                 # 샘플 설정 파일
 │   ├── aws-s3-public-bucket.json
+│   ├── aws-s3-insecure-policy.json    # 보안 문제가 있는 정책
+│   ├── aws-s3-secure-policy.json      # 모범 사례 정책
 │   ├── aws-iam-wildcard-policy.json
 │   ├── gcp-service-account-overprivileged.json
 │   ├── azure-nsg-open-access.json
 │   └── gcp-public-bucket.yaml
+├── docs/                    # 문서
+│   └── S3_BEST_PRACTICES.md # S3 보안 모범 사례 가이드
 ├── package.json
 ├── vite.config.js
 ├── vercel.json              # Vercel 배포 설정
@@ -144,6 +148,12 @@ cloud-misconfig-checker/
 - ✅ S3 서버 측 암호화 미설정
 - ✅ S3 버킷 정책 공개 접근 (Principal: `*`)
 - ✅ S3 CORS 과도한 허용 (AllowedOrigins: `*`)
+- ✅ S3 HTTPS 강제 없음 (`aws:SecureTransport` 조건 없음)
+- ✅ S3 암호화 요구사항 없음 (SSE-KMS 조건 없음)
+- ✅ S3 MFA 요구사항 없음 (민감한 데이터)
+- ✅ S3 과도한 권한 (`s3:*` 액션)
+- ✅ S3 IP 제한 없음 (공개 접근 시)
+- ✅ S3 명시적 Deny 문 없음
 
 ### AWS IAM
 - ✅ IAM 정책 Wildcard 권한 (`Action: "*"`, `Resource: "*"`)
@@ -274,5 +284,7 @@ MIT
 ## 📚 참고 자료
 
 - [AWS 보안 모범 사례](https://docs.aws.amazon.com/security/)
+- [AWS S3 버킷 정책 예시](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)
 - [GCP 보안 가이드](https://cloud.google.com/security)
 - [Azure 보안 모범 사례](https://docs.microsoft.com/azure/security/)
+- [S3 보안 모범 사례 가이드](./docs/S3_BEST_PRACTICES.md) - 이 프로젝트 내 문서

@@ -80,6 +80,93 @@ export function analyzeMisconfig(data) {
     misconfigs.push('S3 CORS가 모든 오리진을 허용')
   }
 
+  // S3 HTTPS 강제 없음 (aws:SecureTransport)
+  const hasS3Statements = dataString.includes('"action"') && (dataString.includes('s3:') || dataString.includes('"resource"') && dataString.includes('s3:::'))
+  const hasSecureTransport = dataString.includes('aws:securetransport') || dataString.includes('"securetransport"')
+  if (hasS3Statements && !hasSecureTransport && allowEffectPattern.test(dataString)) {
+    const location = findJsonPath(dataObj, ['Statement', 'Condition'], 'SecureTransport')
+    issues.push({
+      type: 'S3 HTTPS Not Enforced',
+      severity: 'High',
+      description: 'S3 버킷 정책에 HTTPS 강제 조건이 없어 HTTP를 통한 비암호화 접근이 가능합니다.',
+      location,
+      recommendation: 'aws:SecureTransport 조건을 사용하여 HTTPS 연결만 허용하도록 정책을 수정하세요.'
+    })
+    misconfigs.push('S3 버킷 정책에 HTTPS 강제 조건 없음')
+  }
+
+  // S3 암호화 요구사항 없음 (SSE-KMS)
+  const hasPutObject = dataString.includes('s3:putobject') || dataString.includes('s3:PutObject')
+  const hasEncryptionCondition = dataString.includes('s3:x-amz-server-side-encryption') || dataString.includes('server-side-encryption')
+  if (hasPutObject && !hasEncryptionCondition && allowEffectPattern.test(dataString)) {
+    const location = findJsonPath(dataObj, ['Statement', 'Action'], 'PutObject')
+    issues.push({
+      type: 'S3 Encryption Not Required',
+      severity: 'High',
+      description: 'S3 버킷 정책에 암호화 요구사항이 없어 암호화되지 않은 객체 업로드가 가능합니다.',
+      location,
+      recommendation: 's3:x-amz-server-side-encryption 조건을 사용하여 SSE-KMS 또는 AES256 암호화를 필수로 요구하세요.'
+    })
+    misconfigs.push('S3 버킷 정책에 암호화 요구사항 없음')
+  }
+
+  // S3 MFA 요구사항 없음 (민감한 데이터)
+  const hasSensitiveActions = dataString.includes('s3:deleteobject') || dataString.includes('s3:putobject') || dataString.includes('taxdocuments')
+  const hasMFA = dataString.includes('aws:multifactorauthage') || dataString.includes('MultiFactorAuthAge')
+  if (hasSensitiveActions && !hasMFA && allowEffectPattern.test(dataString)) {
+    const location = findJsonPath(dataObj, ['Statement', 'Condition'], 'MultiFactorAuthAge')
+    issues.push({
+      type: 'S3 MFA Not Required',
+      severity: 'Medium',
+      description: '민감한 데이터에 대한 S3 작업에 MFA 요구사항이 없습니다.',
+      location,
+      recommendation: 'aws:MultiFactorAuthAge 조건을 사용하여 MFA 인증을 필수로 요구하세요.'
+    })
+    misconfigs.push('S3 버킷 정책에 MFA 요구사항 없음')
+  }
+
+  // S3 과도한 권한 (s3:*)
+  if (dataString.includes('"action"') && (dataString.includes('"s3:*"') || dataString.includes('"action": "*"')) && allowEffectPattern.test(dataString)) {
+    const location = findJsonPath(dataObj, ['Statement', 'Action'], 's3:*')
+    issues.push({
+      type: 'S3 Overly Permissive Actions',
+      severity: 'High',
+      description: 'S3 버킷 정책에 모든 S3 액션(s3:*)이 허용되어 있어 과도한 권한이 부여되었습니다.',
+      location,
+      recommendation: '최소 권한 원칙에 따라 필요한 액션만 명시적으로 허용하세요 (예: s3:GetObject, s3:PutObject).'
+    })
+    misconfigs.push('S3 버킷 정책에 과도한 권한(s3:*) 부여')
+  }
+
+  // S3 IP 제한 없음 (공개 접근 시)
+  const hasPublicAccess = publicPrincipalPattern.test(dataString) || dataString.includes('"principal": "*"')
+  const hasIPRestriction = dataString.includes('aws:sourceip') || dataString.includes('IpAddress')
+  if (hasPublicAccess && !hasIPRestriction && allowEffectPattern.test(dataString)) {
+    const location = findJsonPath(dataObj, ['Statement', 'Condition'], 'SourceIp')
+    issues.push({
+      type: 'S3 No IP Restriction',
+      severity: 'Medium',
+      description: '공개 접근이 허용된 S3 버킷에 IP 제한이 없어 전 세계 어디서나 접근이 가능합니다.',
+      location,
+      recommendation: 'aws:SourceIp 조건을 사용하여 허용된 IP 주소 범위만 접근할 수 있도록 제한하세요.'
+    })
+    misconfigs.push('S3 버킷 정책에 IP 제한 없음')
+  }
+
+  // S3 버킷 정책에 Deny 문이 없음 (명시적 거부)
+  const hasDenyStatement = dataString.includes('"effect": "deny"') || dataString.includes('"Effect": "Deny"')
+  if (hasPublicAccess && !hasDenyStatement) {
+    const location = findJsonPath(dataObj, ['Statement'], 'Deny')
+    issues.push({
+      type: 'S3 Missing Explicit Deny',
+      severity: 'Low',
+      description: '공개 접근이 허용된 정책에 명시적 Deny 문이 없어 보안 제어가 약할 수 있습니다.',
+      location,
+      recommendation: '명시적 Deny 문을 추가하여 특정 조건(예: HTTP, 비암호화)을 명확히 차단하세요.'
+    })
+    misconfigs.push('S3 버킷 정책에 명시적 Deny 문 없음')
+  }
+
   // ========== AWS IAM 관련 검사 ==========
 
   // IAM Wildcard Permissions (정규식 강화)
