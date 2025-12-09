@@ -1,0 +1,33 @@
+.policy-viewer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer-header {
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.viewer-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+.file-name {
+  color: #666;
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+
+.viewer-content {
+  flex: 1;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+}
+
