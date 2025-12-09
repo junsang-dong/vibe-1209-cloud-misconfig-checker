@@ -1,27 +1,47 @@
 // Vercel Serverless Function for LLM Analysis
 // API 키는 서버 사이드에서만 사용하여 보안 강화
 
-export default async function handler(req, res) {
-  // CORS 헤더 설정
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
+export default async function handler(req) {
   // OPTIONS 요청 처리 (CORS preflight)
   if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    })
   }
 
   // POST 요청만 허용
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    )
   }
 
   try {
-    const { policyData, basicAnalysis } = req.body
+    const { policyData, basicAnalysis } = await req.json()
 
     if (!policyData) {
-      return res.status(400).json({ error: 'policyData is required' })
+      return new Response(
+        JSON.stringify({ error: 'policyData is required' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      )
     }
 
     // 환경 변수에서 API 키 가져오기 (서버 사이드만 접근 가능)
@@ -30,10 +50,19 @@ export default async function handler(req, res) {
 
     // API 키가 없으면 에러 반환
     if (!apiKey) {
-      return res.status(500).json({ 
-        error: 'LLM API key not configured',
-        message: '서버에 LLM API 키가 설정되지 않았습니다.'
-      })
+      return new Response(
+        JSON.stringify({ 
+          error: 'LLM API key not configured',
+          message: '서버에 LLM API 키가 설정되지 않았습니다.'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      )
     }
 
     const policyString = typeof policyData === 'string' 
@@ -87,17 +116,35 @@ ${policyString}
     if (!response.ok) {
       const errorData = await response.text()
       console.error('LLM API 오류:', response.status, errorData)
-      return res.status(response.status).json({ 
-        error: `LLM API 오류: ${response.status}`,
-        details: errorData
-      })
+      return new Response(
+        JSON.stringify({ 
+          error: `LLM API 오류: ${response.status}`,
+          details: errorData
+        }),
+        {
+          status: response.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      )
     }
 
     const data = await response.json()
     const content = data.choices[0]?.message?.content
 
     if (!content) {
-      return res.status(500).json({ error: 'LLM 응답이 비어있습니다.' })
+      return new Response(
+        JSON.stringify({ error: 'LLM 응답이 비어있습니다.' }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      )
     }
 
     // JSON 응답 파싱
@@ -119,13 +166,31 @@ ${policyString}
       }
     }
 
-    return res.status(200).json(parsedResult)
+    return new Response(
+      JSON.stringify(parsedResult),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    )
   } catch (error) {
     console.error('서버 오류:', error)
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error.message 
-    })
+    return new Response(
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message 
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    )
   }
 }
 
