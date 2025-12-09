@@ -140,7 +140,7 @@ function FileUploader({ onUpload }) {
           />
           <div className="text-input-footer">
             <p className="text-hint">
-              💡 팁: JSON은 '{ }' 또는 [ ]로 시작하고, YAML은 들여쓰기 형식입니다.
+              💡 팁: JSON은 {"{ }"} 또는 [ ]로 시작하고, YAML은 들여쓰기 형식입니다.
             </p>
             <button
               className="submit-button"
