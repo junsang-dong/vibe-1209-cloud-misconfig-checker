@@ -48,56 +48,97 @@ export default async function handler(req) {
     }
 
     // OpenAI API를 사용하여 키 유효성 검증
-    // 간단한 모델 목록 조회로 키 유효성 확인 (비용 최소화)
-    const apiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1/models'
+    // 최소한의 chat completions 요청으로 빠르게 검증 (타임아웃 5초)
+    const baseUrl = process.env.LLM_API_URL?.replace('/v1/chat/completions', '') || 'https://api.openai.com'
+    const apiUrl = `${baseUrl}/v1/chat/completions`
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (response.ok) {
-      return new Response(
-        JSON.stringify({ 
-          valid: true,
-          message: 'API 키가 유효합니다.'
+    // 타임아웃 설정 (5초)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: 'test'
+            }
+          ],
+          max_tokens: 1
         }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      )
-    } else {
-      const errorData = await response.json().catch(() => ({}))
+        signal: controller.signal
+      })
       
-      let message = 'API 키가 유효하지 않습니다.'
-      if (response.status === 401) {
-        message = '인증 실패: API 키가 올바르지 않습니다.'
-      } else if (response.status === 429) {
-        message = 'API 사용량 한도에 도달했습니다.'
-      } else if (errorData.error?.message) {
-        message = errorData.error.message
-      }
+      clearTimeout(timeoutId)
 
-      return new Response(
-        JSON.stringify({ 
-          valid: false,
-          message: message
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
+      if (response.ok) {
+        return new Response(
+          JSON.stringify({ 
+            valid: true,
+            message: 'API 키가 유효합니다.'
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        )
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        
+        let message = 'API 키가 유효하지 않습니다.'
+        if (response.status === 401) {
+          message = '인증 실패: API 키가 올바르지 않습니다.'
+        } else if (response.status === 429) {
+          message = 'API 사용량 한도에 도달했습니다.'
+        } else if (errorData.error?.message) {
+          message = errorData.error.message
         }
-      )
+
+        return new Response(
+          JSON.stringify({ 
+            valid: false,
+            message: message
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        )
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+      
+      // 타임아웃 또는 네트워크 오류 처리
+      if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+        return new Response(
+          JSON.stringify({ 
+            valid: false,
+            message: 'API 키 검증 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.'
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        )
+      }
+      
+      throw fetchError
     }
   } catch (error) {
     console.error('API 키 검증 오류:', error)

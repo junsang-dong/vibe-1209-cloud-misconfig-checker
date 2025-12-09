@@ -32,13 +32,20 @@ function ApiKeyInput({ onApiKeySet, onValidationChange }) {
     setIsValid(null)
 
     try {
+      // 클라이언트 측 타임아웃 설정 (8초 - 서버 타임아웃 5초보다 여유있게)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+
       const response = await fetch('/api/validate-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ apiKey: keyToValidate }),
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       const data = await response.json()
 
@@ -57,7 +64,14 @@ function ApiKeyInput({ onApiKeySet, onValidationChange }) {
       }
     } catch (error) {
       setIsValid(false)
-      setErrorMessage('API 키 검증 중 오류가 발생했습니다: ' + error.message)
+      
+      // 타임아웃 오류 처리
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        setErrorMessage('API 키 검증 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.')
+      } else {
+        setErrorMessage('API 키 검증 중 오류가 발생했습니다: ' + error.message)
+      }
+      
       localStorage.removeItem('openai_api_key')
       onApiKeySet?.(null)
       onValidationChange?.(false)
