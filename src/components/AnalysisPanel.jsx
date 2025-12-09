@@ -6,22 +6,39 @@ import './AnalysisPanel.css'
 function AnalysisPanel({ analysis, isAnalyzing, originalData }) {
   const [activeTab, setActiveTab] = useState('analysis')
 
-  if (isAnalyzing) {
-    return (
-      <div className="analysis-panel">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>AI 분석 중...</p>
-        </div>
-      </div>
-    )
-  }
-
   if (!analysis) {
     return (
       <div className="analysis-panel">
         <div className="empty-state">
           <p>파일을 업로드하면 분석 결과가 표시됩니다</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 분석 중일 때는 기본 분석 결과를 보여주고, LLM 분석 중임을 표시
+  if (isAnalyzing) {
+    return (
+      <div className="analysis-panel">
+        <div className="panel-header">
+          <h2>🔍 보안 분석 결과</h2>
+          <div className={`risk-badge risk-${(analysis.riskLevel || 'Low').toLowerCase()}`}>
+            {analysis.riskLevel || 'Low'}
+          </div>
+        </div>
+        <div className="panel-tabs">
+          <button className="active">위험 분석</button>
+          <button disabled>개선안</button>
+        </div>
+        <div className="panel-content">
+          <RiskCard 
+            analysis={analysis}
+            llmAnalysis={null}
+          />
+          <div className="llm-loading-indicator">
+            <div className="spinner-small"></div>
+            <p>AI 심층 분석 중... (기본 분석 결과는 위에 표시됩니다)</p>
+          </div>
         </div>
       </div>
     )

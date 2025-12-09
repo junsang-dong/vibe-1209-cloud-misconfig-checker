@@ -48,15 +48,16 @@ export default async function handler(req) {
     const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY
     const apiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1/chat/completions'
 
-    // API 키가 없으면 에러 반환
+    // API 키가 없으면 null 반환 (기본 분석만 제공)
     if (!apiKey) {
       return new Response(
         JSON.stringify({ 
           error: 'LLM API key not configured',
-          message: '서버에 LLM API 키가 설정되지 않았습니다.'
+          message: '서버에 LLM API 키가 설정되지 않았습니다.',
+          skipLLM: true
         }),
         {
-          status: 500,
+          status: 200, // 200으로 변경하여 클라이언트에서 정상 처리
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
